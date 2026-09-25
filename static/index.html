@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f1">
+  <title>GeoResearch Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-symbol" aria-hidden="true">◎</span><span>GeoResearch<span class="brand-light"> Studio</span></span></div>
+      <div class="sidebar-inner">
+        <p class="sidebar-label">Workspace</p>
+        <nav aria-label="Main navigation">
+          <button class="nav-item active" data-view="new"><span aria-hidden="true">◫</span> New research</button>
+          <button class="nav-item" data-view="history"><span aria-hidden="true">▤</span> Past research</button>
+          <button class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span> Settings</button>
+        </nav>
+        <div class="sidebar-divider"></div>
+        <p class="sidebar-label">What happens</p>
+        <ol class="steps">
+          <li><span>1</span><div><strong>Collect public discussion</strong><small>Find claims and reactions</small></div></li>
+          <li><span>2</span><div><strong>Research sources</strong><small>Review official and expert material</small></div></li>
+          <li><span>3</span><div><strong>Check and write</strong><small>Make a script, audit, and draft</small></div></li>
+          <li><span>4</span><div><strong>Prepare paper</strong><small>Create LaTeX and a PDF if available</small></div></li>
+        </ol>
+      </div>
+      <div class="sidebar-foot"><span class="status-dot" id="setup-dot"></span><span id="setup-status">Checking setup…</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><span>Research workspace</span><span class="topbar-right">Local app <span class="topbar-separator">/</span> Your files stay on this computer</span></header>
+
+      <section id="new-view" class="view" aria-labelledby="new-title">
+        <div class="hero">
+          <div class="hero-copy"><h1 id="new-title">Start with a question.<br>Leave with a clearer story.</h1><p>Explore a geopolitical topic, check the sources, and turn the findings into a YouTube script and research paper.</p></div>
+          <div class="hero-mark" aria-hidden="true"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="orb orb-three"></div><div class="orb-center">G</div></div>
+        </div>
+
+        <div class="content-grid">
+          <section class="panel start-panel" aria-labelledby="start-title">
+            <div class="panel-heading"><div><h2 id="start-title">New research</h2><p>Choose a topic and what you want to explore.</p></div></div>
+            <form id="run-form">
+              <label for="topic">What topic are you researching?</label>
+              <textarea id="topic" name="topic" rows="3" maxlength="180" placeholder="For example: Recent developments in the India–China border talks" required></textarea>
+              <p class="field-help">A specific topic gives the research a clearer focus.</p>
+              <fieldset class="mode-options"><legend>Choose a research type</legend>
+                <label class="mode-option"><input type="radio" name="mode" value="full" checked><span class="mode-copy"><strong>Complete research <em>Recommended</em></strong><small>Public discussion, source research, script, audit, and paper</small></span><span class="radio-visual" aria-hidden="true"></span></label>
+                <label class="mode-option"><input type="radio" name="mode" value="social"><span class="mode-copy"><strong>Public discussion only</strong><small>Claims and reactions from X and related sources</small></span><span class="radio-visual" aria-hidden="true"></span></label>
+                <label class="mode-option"><input type="radio" name="mode" value="research"><span class="mode-copy"><strong>Source research only</strong><small>Official sources, reporting, and expert analysis</small></span><span class="radio-visual" aria-hidden="true"></span></label>
+              </fieldset>
+              <div class="form-footer"><p>Research uses your connected API services and may incur charges.</p><button class="primary-button" type="submit" id="run-button">Start research <span aria-hidden="true">↗</span></button></div>
+              <p id="form-message" class="form-message" role="alert" hidden></p>
+            </form>
+          </section>
+
+          <aside class="side-column">
+            <section class="panel setup-card"><div class="small-icon" aria-hidden="true">⌁</div><h2>Ready to begin?</h2><p id="setup-summary">Checking the required services…</p><button class="text-button" data-view="settings">Review setup <span aria-hidden="true">↗</span></button></section>
+            <section class="panel recent-card"><div class="recent-heading"><h2>Recent research</h2><button class="text-button" data-view="history">View all</button></div><div id="recent-list" class="recent-list"><p class="muted">Loading…</p></div></section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="history-view" class="view" hidden aria-labelledby="history-title"><div class="page-heading"><h1 id="history-title">Past research</h1><p>Reopen a run to review its files and progress.</p></div><div class="panel history-panel" id="history-list"></div></section>
+
+      <section id="settings-view" class="view" hidden aria-labelledby="settings-title"><div class="page-heading"><h1 id="settings-title">Settings</h1><p>Connect the services used by the research workflow.</p></div><div class="panel settings-panel"><h2>API keys</h2><p>Keys are saved in a local <code>.env</code> file beside this app. Existing keys are never shown here.</p><form id="settings-form"><div class="settings-fields"><label>Anthropic <span id="key-ANTHROPIC_API_KEY" class="key-status"></span><input type="password" name="ANTHROPIC_API_KEY" autocomplete="off" placeholder="Paste a key to add or replace"></label><label>Perplexity <span id="key-PERPLEXITY_API_KEY" class="key-status"></span><input type="password" name="PERPLEXITY_API_KEY" autocomplete="off" placeholder="Paste a key to add or replace"></label><label>Google <span id="key-GOOGLE_API_KEY" class="key-status"></span><input type="password" name="GOOGLE_API_KEY" autocomplete="off" placeholder="Paste a key to add or replace"></label><label>OpenAI <span id="key-OPENAI_API_KEY" class="key-status"></span><input type="password" name="OPENAI_API_KEY" autocomplete="off" placeholder="Paste a key to add or replace"></label></div><button class="primary-button" type="submit">Save keys</button><p class="form-message" id="settings-message" role="status" hidden></p></form><div class="setup-note"><strong>Before your first run</strong><p>Install the Python packages listed in <code>requirements.txt</code>. A PDF also needs a LaTeX installation; the other files can be created without it.</p></div></div></section>
+
+      <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back-button" id="back-button">← Past research</button><div class="detail-heading"><div><p class="detail-kicker" id="detail-date"></p><h1 id="detail-title"></h1><p id="detail-mode"></p></div><span class="badge" id="detail-status"></span></div><div class="detail-grid"><div><div class="panel progress-panel"><h2>Progress</h2><div id="progress-steps" class="progress-steps"></div><p id="progress-note" class="progress-note"></p></div><div class="panel files-panel"><div class="panel-heading"><div><h2>Research files</h2><p>Open a file to read it, or download a copy.</p></div></div><div id="file-list"></div></div></div><div class="panel preview-panel"><div class="preview-head"><div><h2 id="preview-title">Preview</h2><p id="preview-subtitle">Choose a file to read it here.</p></div><a id="download-link" class="text-button" hidden>Download</a></div><pre id="preview-content" class="preview-content">Select a file from the list to see its contents.</pre></div></div><details class="log-details"><summary>Technical details</summary><pre id="run-log"></pre></details></section>
+    </main>
+  </div>
+</body>
+</html>
