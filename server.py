@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 RUNS = ROOT / "runs"
 STATIC = ROOT / "static"
 ENV_FILE = ROOT / ".env"
-KEYS = ("ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY")
+KEYS = ("GOOGLE_API_KEY", "TAVILY_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY")
 FILES = {
     "twitter_intel.json": "Social research",
     "deep_research.json": "Source research",
@@ -201,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Enter a topic between 3 and 180 characters.")
                 if mode not in ("full", "social", "research"):
                     raise ValueError("Choose a research type.")
-                required = KEYS if mode == "full" else (("ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY") if mode == "social" else ("ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY", "GOOGLE_API_KEY"))
+                required = ("GOOGLE_API_KEY", "TAVILY_API_KEY") if mode in ("social", "research") else ("GOOGLE_API_KEY", "TAVILY_API_KEY")
                 missing = [key for key in required if not configured(env_values()[key])]
                 if missing:
                     raise ValueError("Add the required API keys in Settings before starting.")

@@ -226,7 +226,7 @@ SOURCES = {
 # ══════════════════════════════════════════════════════════
 
 def build_search_plan(topic: str) -> list:
-    """Build a targeted search plan: Gemini for primary sources, Perplexity for analysis."""
+    """Build a targeted search plan: Gemini for primary sources, Tavily for analysis."""
 
     plan = []
 
@@ -302,53 +302,53 @@ def build_search_plan(topic: str) -> list:
                  f"leaders outcome document 2025 2026",
     })
 
-    # ── PERPLEXITY SEARCHES (better for news, analysis, broader web) ──
+    # ── TAVILY SEARCHES (better for news, analysis, broader web) ──
 
     # 8. Wire services
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "Wire services (Reuters, AP, AFP)",
         "query": f"{topic} Reuters OR AP OR AFP latest reporting",
     })
 
     # 9. Think tanks — US
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "US think tanks",
         "query": f"{topic} analysis Brookings OR CSIS OR Carnegie OR CFR OR RAND",
     })
 
     # 10. Think tanks — Europe + Asia
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "EU/Asia think tanks",
         "query": f"{topic} analysis Chatham House OR IISS OR ORF OR IDSA OR RSIS OR ECFR",
     })
 
     # 11. SIPRI + conflict-specific
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "SIPRI + conflict/arms data",
         "query": f"{topic} SIPRI OR arms OR military OR conflict data",
     })
 
     # 12. Historical context + timeline
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "Historical context & timeline",
         "query": f"{topic} background history context timeline chronology",
     })
 
     # 13. Counter-narratives + criticism
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "Counter-narratives & criticism",
         "query": f"{topic} criticism opposition disputed controversial counter-narrative",
     })
 
     # 14. Indian media specifically
     plan.append({
-        "engine": "perplexity",
+        "engine": "tavily",
         "label": "Indian media coverage",
         "query": f"{topic} site:thehindu.com OR site:indianexpress.com OR site:ndtv.com",
     })
@@ -401,7 +401,7 @@ def deep_web_research(topic: str) -> dict:
                 result = perplexity_search(p["query"])
                 all_results.append({
                     "label": p["label"],
-                    "engine": "perplexity",
+                    "engine": "tavily",
                     "text": result["text"],
                     "sources": [],
                     "citations": result["citations"] if isinstance(result["citations"], list) else [],
@@ -419,7 +419,7 @@ def deep_web_research(topic: str) -> dict:
         time.sleep(1)  # Rate limit
 
     # ── Compile all evidence ──
-    console.print(f"\n  🧠 Claude: Synthesizing {len(all_results)} source batches...\n")
+    console.print(f"\n  🧠 Gemini: Synthesizing {len(all_results)} source batches...\n")
 
     evidence_block = ""
 
@@ -432,7 +432,7 @@ def deep_web_research(topic: str) -> dict:
 
     evidence_block += "\n\n### === NEWS, ANALYSIS, THINK TANKS ===\n"
     for r in all_results:
-        if r["engine"] == "perplexity":
+        if r["engine"] == "tavily":
             evidence_block += f"\n--- {r['label']} ---\n{r['text']}\n"
 
     # Collect ALL citations
@@ -441,7 +441,7 @@ def deep_web_research(topic: str) -> dict:
         all_citations.extend(r["citations"])
     all_citations = list(set(all_citations))
 
-    # ── Claude: Structured synthesis + claim extraction ──
+    # ── Gemini: Structured synthesis + claim extraction ──
     research = claude(
         system="""You are a senior geopolitical analyst with access to
 primary government sources, international organization documents,

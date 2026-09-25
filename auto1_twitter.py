@@ -1,7 +1,7 @@
 """
 AUTOMATION 1 — TWITTER / X INTELLIGENCE
 
-Searches Twitter/X via Perplexity (no $5K/mo X API needed).
+Searches Twitter/X via Tavily (no $5K/mo X API needed).
 Extracts claims from officials, journalists, analysts, viral posts.
 Classifies speakers, fact-checks each claim.
 
@@ -9,8 +9,8 @@ Usage:  python auto1_twitter.py "India-China LAC standoff 2026"
         Or imported by pipeline.py
 
 LLMs used:
-  - Perplexity sonar-pro → Twitter search (indexes X in real-time)
-  - Claude Sonnet → claim extraction + speaker classification + fact-checking
+  - Tavily → Twitter/web search (free 1K/month)
+  - Gemini 3.6 Flash → claim extraction + speaker classification + fact-checking
 """
 
 import json
@@ -170,7 +170,7 @@ def twitter_intel(topic: str) -> dict:
 
     searches = build_twitter_searches(topic)
 
-    # ── Step 1: Multi-angle Perplexity searches ──
+    # ── Step 1: Multi-angle Tavily searches ──
     twitter_data = []
     for i, s in enumerate(searches, 1):
         console.print(f"  [{i}/{len(searches)}] 🐦 {s['angle']}...")
@@ -190,8 +190,8 @@ def twitter_intel(topic: str) -> dict:
             })
         time.sleep(1)
 
-    # ── Step 2: Claude — Extract structured claims ──
-    console.print(f"\n  🧠 Extracting claims with Claude...")
+    # ── Step 2: Gemini — Extract structured claims ──
+    console.print(f"\n  🧠 Extracting claims with Gemini...")
 
     raw_text = "\n\n".join([
         f"=== {d['angle']} ===\n{d['results']}"
@@ -213,7 +213,7 @@ def twitter_intel(topic: str) -> dict:
 
     console.print(f"  Found [bold]{len(claims)}[/] claims\n")
 
-    # ── Step 3: Claude — Fact-check in batches ──
+    # ── Step 3: Gemini — Fact-check in batches ──
     console.print(f"  ✅ Fact-checking {len(claims)} claims...")
 
     checked_claims = []

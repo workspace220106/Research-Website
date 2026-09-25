@@ -24,12 +24,12 @@ brew install --cask mactex
 
 | Service | Cost | Get from |
 |---------|------|----------|
-| Claude (Anthropic) | Pay per use (~$0.50/run) | console.anthropic.com |
-| Perplexity | Min $5 credit (~$0.30/run) | perplexity.ai/settings/api |
-| Google Gemini | Free tier available | aistudio.google.com/apikey |
-| OpenAI GPT-4o | Pay per use (~$0.15/run) | platform.openai.com/api-keys |
+| Google Gemini 3.6 Flash | Free tier | aistudio.google.com/apikey |
+| Tavily | Free (1K searches/mo) | app.tavily.com |
+| Groq | Free tier | console.groq.com |
+| OpenAI *(optional)* | Pay per use | platform.openai.com/api-keys |
 
-Total cost per full research run: ~$1.20
+Total cost per full research run: **Free** (within free-tier limits)
 
 ## Usage
 
@@ -53,27 +53,27 @@ python auto2_deepweb.py "topic"
 ## What Each Automation Does
 
 ### Automation 1 — Twitter Intelligence
-- **LLMs:** Perplexity sonar-pro + Claude Sonnet
+- **LLMs:** Tavily search + Gemini 3.6 Flash
 - Searches X/Twitter for official statements, journalist reports, analyst commentary, viral claims
 - Classifies speakers (official / journalist / analyst / general user)
 - Fact-checks each claim
 - Output: `twitter_intel.json`
 
 ### Automation 2 — Deep Web Research
-- **LLMs:** Gemini 2.5 Flash (Google grounding) + Perplexity + Claude
+- **LLMs:** Gemini 3.6 Flash (Google grounding) + Tavily + Gemini 3.6 Flash
 - Searches 30+ institutional domains: government foreign ministries, BRICS, G7, G20, SCO, QUAD, UN, NATO, EU, ASEAN, AU, ICJ, ICC, IMF, World Bank, WTO, OECD, think tanks
 - Source-tiered: PRIMARY → JOURNALISM → RESEARCH → SOCIAL
 - Output: `deep_research.json`
 
 ### Automation 3 — Merge, Audit, Build
-- **LLMs:** Claude Sonnet + GPT-4o
+- **LLMs:** Gemini 3.6 Flash + GPT-4.1 / Groq Llama 3.3
 - Cross-references Twitter claims against official sources
 - Flags contradictions, Twitter-only claims, overlooked official info
 - Builds: research paper draft + YouTube script + audit report
 - Output: `audit.md`, `paper_draft.md`, `script.md`
 
 ### Automation 4 — IEEE LaTeX Paper
-- **LLMs:** Claude Sonnet
+- **LLMs:** Gemini 3.6 Flash
 - Converts paper to IEEE conference format LaTeX
 - Generates BibTeX references
 - Compiles PDF (or provides files for Overleaf)

@@ -8,8 +8,7 @@ Compiles to PDF (or provides files for Overleaf upload).
 Usage:  Imported by pipeline.py (receives paper_md string)
 
 LLMs used:
-  - Claude Sonnet → LaTeX conversion + BibTeX generation
-    (most reliable LaTeX output, fewer compilation errors than GPT)
+  - Gemini 3.6 Flash → LaTeX conversion + BibTeX generation
 """
 
 import subprocess

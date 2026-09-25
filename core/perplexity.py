@@ -1,19 +1,18 @@
 """
-Perplexity API wrapper.
+Tavily search wrapper (replaces Perplexity API).
 Used for: Twitter/X search, news search, think tank search, general web search.
-Uses OpenAI-compatible API.
+Same perplexity_search() function signature so the rest of the pipeline is unchanged.
+Free tier: 1,000 searches/month.
 """
 
-from openai import OpenAI
+import httpx
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-pplx = OpenAI(
-    api_key=os.getenv("PERPLEXITY_API_KEY"),
-    base_url="https://api.perplexity.ai",
-)
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+TAVILY_URL = "https://api.tavily.com/search"
 
 
 def perplexity_search(
@@ -22,29 +21,33 @@ def perplexity_search(
     model: str = "sonar-pro",
 ) -> dict:
     """
-    Search via Perplexity sonar-pro.
+    Search via Tavily (drop-in replacement for Perplexity).
     Returns: {"text": "...", "citations": [...]}
+    The `model` param is kept for signature compatibility but unused.
     """
-    if not system:
-        system = (
-            "You are a geopolitical research assistant. "
-            "Return detailed findings with specific sources, "
-            "publisher names, and URLs. "
-            "Prioritize primary sources and wire services."
+    payload = {
+        "api_key": TAVILY_API_KEY,
+        "query": query,
+        "search_depth": "advanced",
+        "include_answer": True,
+        "max_results": 10,
+    }
+
+    resp = httpx.post(TAVILY_URL, json=payload, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+
+    answer = data.get("answer", "")
+    results = data.get("results", [])
+    citations = [r["url"] for r in results if r.get("url")]
+
+    if not answer and results:
+        answer = "\n\n".join(
+            f"{r.get('title', '')}: {r.get('content', '')}"
+            for r in results
         )
 
-    resp = pplx.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": query},
-        ],
-    )
-
-    choice = resp.choices[0].message
-    citations = getattr(resp, "citations", [])
-
     return {
-        "text": choice.content,
-        "citations": citations if isinstance(citations, list) else [],
+        "text": answer,
+        "citations": citations,
     }

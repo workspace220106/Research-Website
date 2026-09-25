@@ -1,7 +1,7 @@
 """
 GEORESEARCH PIPELINE — MASTER RUNNER
 
-One command. Four automations. Four LLMs. Full research pipeline.
+One command. Four automations. Free-tier LLMs. Full research pipeline.
 
 Usage:
     python pipeline.py "India-China LAC standoff September 2026"
@@ -9,10 +9,10 @@ Usage:
     python pipeline.py "NATO expansion implications 2026"
 
 What it does:
-    1. Twitter Intelligence  → Perplexity + Claude
-    2. Deep Web Research     → Gemini + Perplexity + Claude
-    3. Merge + Audit + Build → Claude + GPT-4o
-    4. IEEE LaTeX Paper      → Claude + pdflatex
+    1. Twitter Intelligence  → Tavily + Gemini 3.6 Flash
+    2. Deep Web Research     → Gemini (grounded) + Tavily + Gemini 3.6 Flash
+    3. Merge + Audit + Build → Gemini 3.6 Flash + GPT-4.1 / Groq
+    4. IEEE LaTeX Paper      → Gemini 3.6 Flash + pdflatex
 
 Output folder: output/{date}_{topic}/
     ├── twitter_intel.json    — Twitter claims + fact-check
@@ -24,7 +24,7 @@ Output folder: output/{date}_{topic}/
     ├── refs.bib              — BibTeX references
     └── paper.pdf             — Compiled PDF (if texlive installed)
 
-Cost: ~$1.20 per full run
+Cost: Free (Gemini free tier + Tavily 1K/mo + Groq free) or near-free with OpenAI
 Time: ~3-5 minutes
 """
 
@@ -52,11 +52,11 @@ console = Console()
 def validate_env():
     """Check all API keys are present before running."""
     required = {
-        "ANTHROPIC_API_KEY": "console.anthropic.com",
-        "PERPLEXITY_API_KEY": "perplexity.ai/settings/api",
         "GOOGLE_API_KEY": "aistudio.google.com/apikey",
-        "OPENAI_API_KEY": "platform.openai.com/api-keys",
+        "TAVILY_API_KEY": "app.tavily.com",
     }
+    optional_script = ("OPENAI_API_KEY", "GROQ_API_KEY")
+    has_script_key = any(os.getenv(k) for k in optional_script)
 
     missing = []
     for key, url in required.items():
@@ -70,6 +70,10 @@ def validate_env():
             console.print(f"    Get it from: [blue]{url}[/]\n")
         console.print("Add them to your .env file and retry.\n")
         sys.exit(1)
+
+    if not has_script_key:
+        console.print("[yellow]⚠ No OPENAI_API_KEY or GROQ_API_KEY — YouTube script step will fail.[/]")
+        console.print("  Get a free Groq key from: [blue]console.groq.com[/]\n")
 
 
 def run_pipeline(topic: str):

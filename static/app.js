@@ -36,10 +36,11 @@ function message(id, text, success = false) {
 async function loadState() {
   try {
     const state = await api('/api/state');
-    const ready = Object.values(state.keys).every(Boolean);
-    el('setup-dot').classList.toggle('ready', ready);
-    el('setup-status').textContent = ready ? 'All services connected' : 'Setup needed';
-    el('setup-summary').textContent = ready ? 'Your four research services are connected. Start with a topic when you are ready.' : `${Object.values(state.keys).filter(Boolean).length} of 4 services connected. Add the remaining API keys to run complete research.`;
+    const connectedCount = Object.values(state.keys).filter(Boolean).length;
+    const coreReady = state.keys['GOOGLE_API_KEY'] && state.keys['TAVILY_API_KEY'];
+    el('setup-dot').classList.toggle('ready', coreReady);
+    el('setup-status').textContent = coreReady ? 'Ready to research' : 'Setup needed';
+    el('setup-summary').textContent = coreReady ? 'Core services connected (Gemini + Tavily). Add Groq or OpenAI for YouTube scripts.' : `${connectedCount} services connected. Add at least Google and Tavily keys to start research.`;
     Object.entries(state.keys).forEach(([key, ok]) => {
       const target = el(`key-${key}`);
       target.textContent = ok ? 'Connected' : 'Not connected';

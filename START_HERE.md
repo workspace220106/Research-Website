@@ -7,7 +7,7 @@ A local frontend for the research pipeline in the supplied archive. It uses Lite
 1. Install Python 3.10 or newer if needed.
 2. In this folder, run `pip install -r requirements.txt` once.
 3. Double-click `start.bat`, then open **http://127.0.0.1:8765** in your browser.
-4. In **Settings**, enter your Anthropic, Perplexity, Google, and OpenAI API keys. The app saves them locally in `.env` and does not display them again.
+4. In **Settings**, enter your Google Gemini and Tavily API keys (both free). Optionally add a Groq or OpenAI key for YouTube scripts. The app saves them locally in `.env` and does not display them again.
 5. Return to **New research**, enter a topic, and choose the type of run.
 
 On macOS or Linux, use `python3 server.py` instead of `start.bat` after installing the requirements.

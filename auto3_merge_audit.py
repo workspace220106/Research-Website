@@ -8,8 +8,8 @@ Builds: research paper draft (Markdown) + YouTube script + audit report.
 Usage:  Imported by pipeline.py (receives dicts from auto1 + auto2)
 
 LLMs used:
-  - Claude Sonnet → merge, cross-reference, audit, research paper
-  - GPT-4o → YouTube script (better conversational tone)
+  - Gemini 3.6 Flash → merge, cross-reference, audit, research paper
+  - GPT-4.1 / Groq Llama 3.3 → YouTube script (better conversational tone)
 """
 
 import json
@@ -270,7 +270,7 @@ def merge_and_build(twitter_data: dict, research_data: dict) -> dict:
     console.print("  ✅ Paper draft complete\n")
 
     # ── 3. YouTube Script ──
-    console.print("  🎬 Building YouTube script with GPT-4o...")
+    console.print("  🎬 Building YouTube script...")
     try:
         script = gpt(
             system=SCRIPT_PROMPT,
@@ -278,8 +278,8 @@ def merge_and_build(twitter_data: dict, research_data: dict) -> dict:
         )
     except Exception as e:
         console.print(f"  [red]⚠ Script generation failed: {e}[/]")
-        # Fallback to Claude
-        console.print("  🔄 Falling back to Claude for script...")
+        # Fallback to Gemini
+        console.print("  🔄 Falling back to Gemini for script...")
         try:
             script = claude(
                 system=SCRIPT_PROMPT,
