@@ -1,16 +1,18 @@
 """
-AUTOMATION 1 — TWITTER / X INTELLIGENCE
+AUTOMATION 1 — TWITTER / X INTELLIGENCE + SCRAPLING
 
 Searches Twitter/X via Tavily (no $5K/mo X API needed).
+Scrapes full content from cited URLs for deeper context.
 Extracts claims from officials, journalists, analysts, viral posts.
-Classifies speakers, fact-checks each claim.
+Classifies speakers, fact-checks each claim against scraped evidence.
 
 Usage:  python auto1_twitter.py "India-China LAC standoff 2026"
         Or imported by pipeline.py
 
 LLMs used:
-  - Tavily → Twitter/web search (free 1K/month)
-  - Gemini 3.6 Flash → claim extraction + speaker classification + fact-checking
+  - Tavily -> Twitter/web search (free 1K/month)
+  - Scrapling -> full content extraction from cited URLs
+  - OpenRouter -> claim extraction + speaker classification + fact-checking
 """
 
 import json
@@ -22,6 +24,7 @@ from rich.console import Console
 from rich.table import Table
 from core.perplexity import perplexity_search
 from core.claude import claude
+from core.scraper import scrape_urls, build_content_block
 from core.models import VERDICT_EMOJI
 
 console = Console()
@@ -99,6 +102,19 @@ def build_twitter_searches(topic: str) -> list:
                 "Return: institution, statement, date, URL."
             ),
         },
+        {
+            "angle": "Reactions from global south & non-western voices",
+            "query": (
+                f"site:x.com OR site:twitter.com {topic} "
+                f"Africa Asia Latin America developing nations "
+                f"reaction response criticism support"
+            ),
+            "system": (
+                "Search Twitter/X for reactions from GLOBAL SOUTH and NON-WESTERN voices. "
+                "Focus on African, Asian, Latin American officials, media, commentators. "
+                "Return: who posted, their position/reaction, country/region, URL."
+            ),
+        },
     ]
 
 
@@ -107,28 +123,32 @@ def build_twitter_searches(topic: str) -> list:
 # ══════════════════════════════════════════════════════════
 
 EXTRACT_PROMPT = """Extract every distinct factual claim from these Twitter/X
-search results about a geopolitical topic.
+search results AND the full article text scraped from cited URLs.
 
 For each claim return a JSON array:
 [{
-  "claim": "concise factual statement",
+  "claim": "concise factual statement with specific details (names, dates, numbers)",
   "speaker": "who said it (name / handle / role)",
-  "speaker_type": "official|journalist|analyst|general_user",
+  "speaker_type": "official|journalist|analyst|general_user|institution",
   "date": "when posted (YYYY-MM-DD if available, else 'unknown')",
-  "url": "tweet URL if available, else empty string",
-  "claim_type": "factual_event|statistic|attribution|causal|prediction",
-  "engagement": "high|medium|low|unknown"
+  "url": "source URL if available, else empty string",
+  "claim_type": "factual_event|statistic|attribution|causal|prediction|policy_action|military_action|economic_data",
+  "engagement": "high|medium|low|unknown",
+  "context": "1-2 sentences of background context from the full article if available",
+  "linked_article_title": "title of the linked article if the tweet cited one"
 }]
 
 RULES:
 - Each claim must be a SEPARATE factual assertion
+- Extract SPECIFIC details: exact quotes, numbers, dates, names of officials
+- If the scraped article provides additional context beyond the tweet, include it
 - Speaker classification determines credibility weight:
   official = highest (government account)
+  institution = high (UN/NATO/EU/BRICS official)
   journalist = high (verified reporter)
   analyst = medium (expert/OSINT)
   general_user = lowest (unverified account)
-- If the same claim appears from multiple speakers, list EACH instance separately
-  (this helps cross-reference later)
+- If the same claim appears from multiple speakers, list EACH instance
 - Include predictions only if presented as likely or imminent
 - DO NOT include pure opinions, jokes, or memes
 - Return ONLY valid JSON array"""
@@ -139,23 +159,27 @@ RULES:
 # ══════════════════════════════════════════════════════════
 
 FACTCHECK_PROMPT = """You are fact-checking claims from Twitter/X about a geopolitical topic.
+You also have access to full article text scraped from the URLs cited in tweets.
 
-For each claim, assign a verification status based on the speaker type and evidence.
+For each claim, assign a verification status based on the speaker type, evidence,
+and whether the full article text corroborates it.
 
 VERIFICATION RULES:
 - Official government account + specific verifiable event = REPORTED
   (not VERIFIED unless independently confirmed by another source)
 - Journalist from major outlet (Reuters/AP/BBC/AFP) = REPORTED
 - Multiple independent sources (different outlets, not retweets) confirming = VERIFIED
+- Full article text from official source corroborates tweet = VERIFIED
 - Sources giving conflicting accounts = DISPUTED
 - Viral claim from general user with no corroboration = UNVERIFIED
 - Analyst interpretation/prediction = REPORTED (it's expert opinion, not fact)
 
 Return the same JSON array with these ADDED fields:
 "verdict": "verified|reported|disputed|unverified",
-"reasoning": "1-2 sentences explaining why this verdict",
+"reasoning": "2-3 sentences explaining why this verdict, citing specific evidence",
 "credibility_weight": 1-5 (5 = most credible),
-"needs_verification": true/false (flag claims that should be checked against official sources)
+"needs_verification": true/false (flag claims that should be checked against official sources),
+"corroborating_sources": ["list of other sources that support this claim"]
 
 Return ONLY valid JSON array."""
 
@@ -165,47 +189,83 @@ Return ONLY valid JSON array."""
 # ══════════════════════════════════════════════════════════
 
 def twitter_intel(topic: str) -> dict:
-    console.print(f"\n[bold red]━━━ TWITTER / X INTELLIGENCE ━━━[/]\n")
+    console.print(f"\n[bold red]--- TWITTER / X INTELLIGENCE ---[/]\n")
     console.print(f"  Topic: [bold]{topic}[/]\n")
 
     searches = build_twitter_searches(topic)
 
-    # ── Step 1: Multi-angle Tavily searches ──
+    # ── Phase 1: Multi-angle Tavily searches ──
+    console.print("  [bold]Phase 1: Twitter search discovery[/]\n")
     twitter_data = []
+    all_cited_urls = []
+
     for i, s in enumerate(searches, 1):
-        console.print(f"  [{i}/{len(searches)}] 🐦 {s['angle']}...")
+        console.print(f"  [{i}/{len(searches)}] {s['angle']}...")
         try:
             result = perplexity_search(s["query"], system=s["system"])
+            citations = result.get("citations", [])
             twitter_data.append({
                 "angle": s["angle"],
                 "results": result["text"],
-                "citations": result["citations"],
+                "citations": citations,
+                "tavily_results": result.get("results", []),
             })
+            all_cited_urls.extend(citations)
         except Exception as e:
-            console.print(f"    [red]⚠ Failed: {e}[/]")
+            console.print(f"    [red]! Failed: {e}[/]")
             twitter_data.append({
                 "angle": s["angle"],
                 "results": f"Search failed: {e}",
                 "citations": [],
+                "tavily_results": [],
             })
         time.sleep(1)
 
-    # ── Step 2: Gemini — Extract structured claims ──
-    console.print(f"\n  🧠 Extracting claims with Gemini...")
+    unique_urls = list(set(all_cited_urls))
+    console.print(f"\n  Found [bold]{len(unique_urls)}[/] unique cited URLs\n")
+
+    # ── Phase 2: Scrape full content from cited URLs ──
+    console.print("  [bold]Phase 2: Scrapling deep content from cited URLs[/]\n")
+
+    # Filter out x.com/twitter.com URLs (can't scrape those)
+    scrapeable_urls = [u for u in unique_urls if "x.com" not in u and "twitter.com" not in u]
+    scraped_content = scrape_urls(scrapeable_urls[:20], max_workers=5, label="Cited articles")
+    scraped_text = build_content_block(scraped_content)
+
+    total_words = sum(r.get("word_count", 0) for r in scraped_content)
+    console.print(f"  Scraped {len(scraped_content)} articles ({total_words:,} words)\n")
+
+    # ── Phase 3: Extract structured claims with full context ──
+    console.print("  [bold]Phase 3: Extracting claims (with full article context)[/]\n")
 
     raw_text = "\n\n".join([
         f"=== {d['angle']} ===\n{d['results']}"
         for d in twitter_data
     ])
 
+    # Include Tavily raw content
+    for d in twitter_data:
+        for tr in d.get("tavily_results", []):
+            if tr.get("raw_content") and len(tr["raw_content"]) > 200:
+                raw_text += f"\n\n=== Full content: {tr['title']} ===\n{tr['raw_content'][:3000]}"
+
+    # Add scraped full text
+    if scraped_text:
+        raw_text += f"\n\n=== SCRAPED FULL ARTICLE TEXT ===\n{scraped_text}"
+
+    # Cap to avoid token limits
+    if len(raw_text) > 80000:
+        raw_text = raw_text[:80000] + "\n\n[Text truncated at 80k chars]"
+
     try:
         claims = claude(
             system=EXTRACT_PROMPT,
-            user=f"TOPIC: {topic}\n\nTWITTER DATA:\n{raw_text}",
+            user=f"TOPIC: {topic}\n\nTWITTER DATA + FULL ARTICLE TEXT:\n{raw_text}",
             json_mode=True,
+            max_tokens=16384,
         )
     except Exception as e:
-        console.print(f"  [red]⚠ Claim extraction failed: {e}[/]")
+        console.print(f"  [red]! Claim extraction failed: {e}[/]")
         claims = []
 
     if not isinstance(claims, list):
@@ -213,11 +273,11 @@ def twitter_intel(topic: str) -> dict:
 
     console.print(f"  Found [bold]{len(claims)}[/] claims\n")
 
-    # ── Step 3: Gemini — Fact-check in batches ──
-    console.print(f"  ✅ Fact-checking {len(claims)} claims...")
+    # ── Phase 4: Fact-check in batches ──
+    console.print(f"  [bold]Phase 4: Fact-checking {len(claims)} claims[/]\n")
 
     checked_claims = []
-    batch_size = 5
+    batch_size = 8
 
     for i in range(0, len(claims), batch_size):
         batch = claims[i:i + batch_size]
@@ -236,8 +296,7 @@ def twitter_intel(topic: str) -> dict:
             else:
                 checked_claims.extend(batch)
         except Exception as e:
-            console.print(f"    [red]⚠ Batch failed: {e}[/]")
-            # Keep unchecked claims with default verdict
+            console.print(f"    [red]! Batch failed: {e}[/]")
             for c in batch:
                 c["verdict"] = "unverified"
                 c["reasoning"] = "Fact-check failed"
@@ -248,19 +307,13 @@ def twitter_intel(topic: str) -> dict:
         time.sleep(0.5)
 
     # ── Compile output ──
-    all_citations = []
-    for d in twitter_data:
-        if isinstance(d["citations"], list):
-            all_citations.extend(d["citations"])
-    all_citations = list(set(all_citations))
+    all_citations = list(set(all_cited_urls))
 
-    # Count verdicts
     verdict_counts = {}
     for c in checked_claims:
         v = c.get("verdict", "unverified")
         verdict_counts[v] = verdict_counts.get(v, 0) + 1
 
-    # Count speaker types
     speaker_counts = {}
     for c in checked_claims:
         st = c.get("speaker_type", "unknown")
@@ -281,6 +334,15 @@ def twitter_intel(topic: str) -> dict:
             c for c in checked_claims
             if c.get("needs_verification", False)
         ],
+        "scraping_stats": {
+            "urls_found": len(unique_urls),
+            "pages_scraped": len(scraped_content),
+            "words_scraped": total_words,
+        },
+        "scraped_articles": [
+            {"title": r.get("title", ""), "url": r.get("url", ""), "word_count": r.get("word_count", 0)}
+            for r in scraped_content
+        ],
     }
 
     # ── Print summary ──
@@ -290,7 +352,7 @@ def twitter_intel(topic: str) -> dict:
     table.add_column("Value", justify="right")
     table.add_row("Total claims", str(len(checked_claims)))
     for v, count in sorted(verdict_counts.items()):
-        emoji = VERDICT_EMOJI.get(v, "❓")
+        emoji = VERDICT_EMOJI.get(v, "?")
         color = {"verified": "green", "reported": "blue",
                  "disputed": "yellow", "unverified": "red"}.get(v, "white")
         table.add_row(f"{emoji} [{color}]{v.upper()}[/]", str(count))
@@ -299,6 +361,8 @@ def twitter_intel(topic: str) -> dict:
         table.add_row(f"  {st}", str(count))
     table.add_row("", "")
     table.add_row("Unique source URLs", str(len(all_citations)))
+    table.add_row("Articles scraped", str(len(scraped_content)))
+    table.add_row("Words scraped", f"{total_words:,}")
     table.add_row("Need verification", str(len(output["needs_verification"])))
     console.print(table)
 
@@ -306,9 +370,9 @@ def twitter_intel(topic: str) -> dict:
     flagged = [c for c in checked_claims if c.get("verdict") in ("disputed", "unverified")
                and c.get("engagement") == "high"]
     if flagged:
-        console.print(f"\n  [bold red]⚠ HIGH-ENGAGEMENT UNVERIFIED CLAIMS:[/]")
+        console.print(f"\n  [bold red]! HIGH-ENGAGEMENT UNVERIFIED CLAIMS:[/]")
         for f_ in flagged:
-            console.print(f"    🔴 {f_['claim'][:90]}")
+            console.print(f"    >> {f_['claim'][:90]}")
             console.print(f"       Speaker: {f_.get('speaker', '?')} ({f_.get('speaker_type', '?')})")
 
     console.print()
@@ -331,4 +395,4 @@ if __name__ == "__main__":
     (out / "twitter_intel.json").write_text(
         json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    console.print(f"  💾 Saved: {out}/twitter_intel.json\n")
+    console.print(f"  Saved: {out}/twitter_intel.json\n")

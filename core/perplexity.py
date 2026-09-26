@@ -22,7 +22,7 @@ def perplexity_search(
 ) -> dict:
     """
     Search via Tavily (drop-in replacement for Perplexity).
-    Returns: {"text": "...", "citations": [...]}
+    Returns: {"text": "...", "citations": [...], "results": [...]}
     The `model` param is kept for signature compatibility but unused.
     """
     payload = {
@@ -30,6 +30,7 @@ def perplexity_search(
         "query": query,
         "search_depth": "advanced",
         "include_answer": True,
+        "include_raw_content": True,
         "max_results": 10,
     }
 
@@ -41,6 +42,17 @@ def perplexity_search(
     results = data.get("results", [])
     citations = [r["url"] for r in results if r.get("url")]
 
+    # Build enriched results with raw content
+    enriched = []
+    for r in results:
+        enriched.append({
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "content": r.get("content", ""),
+            "raw_content": r.get("raw_content", ""),
+            "score": r.get("score", 0),
+        })
+
     if not answer and results:
         answer = "\n\n".join(
             f"{r.get('title', '')}: {r.get('content', '')}"
@@ -50,4 +62,5 @@ def perplexity_search(
     return {
         "text": answer,
         "citations": citations,
+        "results": enriched,
     }
