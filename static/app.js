@@ -146,6 +146,9 @@ async function refreshRun() {
     });
     el('progress-note').textContent = run.status === 'running' ? 'The files below appear as each stage finishes. This can take several minutes.' : run.status === 'failed' ? 'The run stopped. Open Technical details below to see what happened.' : run.status === 'partial' ? 'Some steps had problems. Review the files and technical details.' : run.status === 'complete' ? 'The research run has finished.' : 'Starting the research run…';
     el('run-log').textContent = run.log || 'No technical details yet.';
+    const dlAll = el('download-all-link');
+    dlAll.href = `/api/runs/${selectedRun}/download`;
+    dlAll.hidden = !run.files.length;
     const fileList = el('file-list');
     fileList.replaceChildren();
     if (!run.files.length) {

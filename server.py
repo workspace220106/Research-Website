@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import zipfile
+import io
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
@@ -156,6 +158,19 @@ class Handler(BaseHTTPRequestHandler):
                 log = RUNS / run_id / "run.log"
                 data["log"] = re.sub(r"\x1b\[[0-9;]*m", "", log.read_text(encoding="utf-8", errors="replace")[-5000:]) if log.exists() else ""
                 self.send_json(200, data)
+            elif re.fullmatch(r"/api/runs/[a-f0-9]{12}/download", path):
+                run_id = path.split("/")[3]
+                data = metadata(run_id)
+                base = RUNS / run_id / "output"
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                    if base.exists():
+                        for sub in sorted(base.rglob("*")):
+                            if sub.is_file() and sub.name in FILES:
+                                zf.write(sub, sub.name)
+                slug = data.get("topic", "research").lower().replace(" ", "-")[:30]
+                filename = f"{slug}.zip"
+                self.send_bytes(200, buf.getvalue(), "application/zip", filename=filename)
             elif re.fullmatch(r"/api/runs/[a-f0-9]{12}/files/[^/]+", path):
                 _, _, _, run_id, _, name = path.split("/", 5)
                 if name not in FILES:
