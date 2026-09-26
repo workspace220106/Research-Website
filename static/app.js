@@ -37,10 +37,10 @@ async function loadState() {
   try {
     const state = await api('/api/state');
     const connectedCount = Object.values(state.keys).filter(Boolean).length;
-    const coreReady = state.keys['GOOGLE_API_KEY'] && state.keys['TAVILY_API_KEY'];
+    const coreReady = state.keys['GOOGLE_API_KEY'] && state.keys['OPENROUTER_API_KEY'] && state.keys['TAVILY_API_KEY'];
     el('setup-dot').classList.toggle('ready', coreReady);
     el('setup-status').textContent = coreReady ? 'Ready to research' : 'Setup needed';
-    el('setup-summary').textContent = coreReady ? 'Core services connected (Gemini + Tavily). Add Groq or OpenAI for YouTube scripts.' : `${connectedCount} services connected. Add at least Google and Tavily keys to start research.`;
+    el('setup-summary').textContent = coreReady ? 'Core services connected (Gemini + OpenRouter + Tavily). Add NVIDIA NIM or Groq for YouTube scripts.' : `${connectedCount} services connected. Add Gemini, OpenRouter, and Tavily keys to start research.`;
     Object.entries(state.keys).forEach(([key, ok]) => {
       const target = el(`key-${key}`);
       target.textContent = ok ? 'Connected' : 'Not connected';

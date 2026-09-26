@@ -231,6 +231,7 @@ def build_search_plan(topic: str) -> list:
     plan = []
 
     # ── GEMINI SEARCHES (Google grounding — best for .gov and .org domains) ──
+    # 7 searches = well under Gemini's 20 req/day free limit
 
     # 1. Government foreign ministries
     govt_domains = " OR ".join([
@@ -419,7 +420,7 @@ def deep_web_research(topic: str) -> dict:
         time.sleep(1)  # Rate limit
 
     # ── Compile all evidence ──
-    console.print(f"\n  🧠 Gemini: Synthesizing {len(all_results)} source batches...\n")
+    console.print(f"\n  🧠 OpenRouter: Synthesizing {len(all_results)} source batches...\n")
 
     evidence_block = ""
 

@@ -9,10 +9,10 @@ Usage:
     python pipeline.py "NATO expansion implications 2026"
 
 What it does:
-    1. Twitter Intelligence  → Tavily + Gemini 3.6 Flash
-    2. Deep Web Research     → Gemini (grounded) + Tavily + Gemini 3.6 Flash
-    3. Merge + Audit + Build → Gemini 3.6 Flash + GPT-4.1 / Groq
-    4. IEEE LaTeX Paper      → Gemini 3.6 Flash + pdflatex
+    1. Twitter Intelligence  → Tavily + OpenRouter (Nemotron 70B)
+    2. Deep Web Research     → Gemini (grounded, 7 req) + Tavily (7 req) + OpenRouter
+    3. Merge + Audit + Build → OpenRouter (Nemotron 70B) + NVIDIA NIM (Llama 3.3)
+    4. IEEE LaTeX Paper      → OpenRouter (Nemotron 70B) + pdflatex
 
 Output folder: output/{date}_{topic}/
     ├── twitter_intel.json    — Twitter claims + fact-check
@@ -24,13 +24,19 @@ Output folder: output/{date}_{topic}/
     ├── refs.bib              — BibTeX references
     └── paper.pdf             — Compiled PDF (if texlive installed)
 
-Cost: Free (Gemini free tier + Tavily 1K/mo + Groq free) or near-free with OpenAI
+Cost: Free (OpenRouter free + Tavily 1K/mo + NVIDIA NIM free + Groq free)
 Time: ~3-5 minutes
 """
 
 import sys
-import json
 import os
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+import json
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -53,9 +59,10 @@ def validate_env():
     """Check all API keys are present before running."""
     required = {
         "GOOGLE_API_KEY": "aistudio.google.com/apikey",
+        "OPENROUTER_API_KEY": "openrouter.ai/keys",
         "TAVILY_API_KEY": "app.tavily.com",
     }
-    optional_script = ("OPENAI_API_KEY", "GROQ_API_KEY")
+    optional_script = ("NVIDIA_API_KEY", "GROQ_API_KEY")
     has_script_key = any(os.getenv(k) for k in optional_script)
 
     missing = []
@@ -66,14 +73,14 @@ def validate_env():
     if missing:
         console.print("\n[bold red]Missing API keys:[/]\n")
         for key, url in missing:
-            console.print(f"  ✗ {key}")
+            console.print(f"  x {key}")
             console.print(f"    Get it from: [blue]{url}[/]\n")
         console.print("Add them to your .env file and retry.\n")
         sys.exit(1)
 
     if not has_script_key:
-        console.print("[yellow]⚠ No OPENAI_API_KEY or GROQ_API_KEY — YouTube script step will fail.[/]")
-        console.print("  Get a free Groq key from: [blue]console.groq.com[/]\n")
+        console.print("[yellow]! No NVIDIA_API_KEY or GROQ_API_KEY -- YouTube script step will fail.[/]")
+        console.print("  Get a free NVIDIA key from: [blue]build.nvidia.com[/]\n")
 
 
 def run_pipeline(topic: str):
@@ -85,8 +92,8 @@ def run_pipeline(topic: str):
     console.print()
     console.print(Panel(
         f"[bold white]{topic}[/]",
-        title="[bold red]⚡ GeoResearch Pipeline",
-        subtitle="[dim]4 automations · 4 LLMs · 1 query",
+        title="[bold red]GeoResearch Pipeline",
+        subtitle="[dim]4 automations - 4 LLMs - 1 query",
         border_style="red",
         padding=(1, 2),
     ))
@@ -104,7 +111,7 @@ def run_pipeline(topic: str):
     out_dir = Path("output") / f"{date}_{slug}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    console.print(f"  📁 Output: {out_dir}/\n")
+    console.print(f"  Output: {out_dir}/\n")
 
     # ══════════════════════════════════════════
     # AUTOMATION 1 — Twitter Intelligence
@@ -112,7 +119,7 @@ def run_pipeline(topic: str):
     try:
         twitter = twitter_intel(topic)
     except Exception as e:
-        console.print(f"[red]⚠ Twitter Intelligence failed: {e}[/]")
+        console.print(f"[red]! Twitter Intelligence failed: {e}[/]")
         console.print("[dim]  Continuing with empty Twitter data...[/]\n")
         twitter = {"topic": topic, "source": "twitter", "claims": [], "summary": {}, "speaker_breakdown": {}, "raw_citations": [], "needs_verification": []}
 
@@ -127,7 +134,7 @@ def run_pipeline(topic: str):
     try:
         research = deep_web_research(topic)
     except Exception as e:
-        console.print(f"[red]⚠ Deep Web Research failed: {e}[/]")
+        console.print(f"[red]! Deep Web Research failed: {e}[/]")
         console.print("[dim]  Continuing with empty research data...[/]\n")
         research = {"topic": topic, "source": "deep_web", "claims": [], "synthesis": {}, "all_sources": [], "summary": {}, "raw_citations": []}
 
@@ -142,7 +149,7 @@ def run_pipeline(topic: str):
     try:
         outputs = merge_and_build(twitter, research)
     except Exception as e:
-        console.print(f"[red]⚠ Merge/Build failed: {e}[/]")
+        console.print(f"[red]! Merge/Build failed: {e}[/]")
         outputs = {
             "audit": f"# Audit Failed\nError: {e}",
             "paper": f"# Paper Failed\nError: {e}",
@@ -159,7 +166,7 @@ def run_pipeline(topic: str):
     try:
         latex_result = build_ieee_paper(outputs["paper"], out_dir)
     except Exception as e:
-        console.print(f"[red]⚠ LaTeX generation failed: {e}[/]")
+        console.print(f"[red]! LaTeX generation failed: {e}[/]")
         latex_result = {"error": str(e), "pdf_compiled": False}
 
     # ══════════════════════════════════════════
@@ -176,7 +183,7 @@ def run_pipeline(topic: str):
             if src.exists():
                 shutil.copy2(src, vault_dir / fname)
 
-        console.print(f"  📁 Copied to Obsidian: {vault_dir}/\n")
+        console.print(f"  Copied to Obsidian: {vault_dir}/\n")
 
     # ══════════════════════════════════════════
     # FINAL SUMMARY
@@ -194,29 +201,29 @@ def run_pipeline(topic: str):
                 size_str = f"{size / 1024:.1f} KB"
             else:
                 size_str = f"{size} B"
-            files.append(f"  {'✅' if size > 100 else '⚠️'}  {f.name:<30} {size_str:>10}")
+            files.append(f"  {'[OK]' if size > 100 else '[!!]'}  {f.name:<30} {size_str:>10}")
 
     files_text = "\n".join(files)
 
     # Counts
     t_claims = len(twitter.get("claims", []))
     r_claims = len(research.get("claims", []))
-    pdf_status = "✅ Compiled" if latex_result.get("pdf_compiled") else "⚠️ Upload .tex to Overleaf"
+    pdf_status = "Compiled" if latex_result.get("pdf_compiled") else "Upload .tex to Overleaf"
 
     console.print(Panel(
         f"""[bold green]Pipeline Complete![/]
 
-📁 {out_dir}/
+{out_dir}/
 
 {files_text}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+------------------------------
   Twitter claims:     {t_claims}
   Research claims:    {r_claims}
   PDF status:         {pdf_status}
   Time elapsed:       {minutes}m {seconds}s
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━""",
-        title="[bold]⚡ Results",
+------------------------------""",
+        title="[bold]Results",
         border_style="green",
         padding=(1, 2),
     ))
@@ -234,7 +241,7 @@ def run_twitter_only(topic: str):
     out = Path("output") / f"{date}_{slug}"
     out.mkdir(parents=True, exist_ok=True)
     (out / "twitter_intel.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-    console.print(f"\n  💾 Saved: {out}/twitter_intel.json\n")
+    console.print(f"\n  Saved: {out}/twitter_intel.json\n")
 
 
 def run_research_only(topic: str):
@@ -247,7 +254,7 @@ def run_research_only(topic: str):
     out = Path("output") / f"{date}_{slug}"
     out.mkdir(parents=True, exist_ok=True)
     (out / "deep_research.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-    console.print(f"\n  💾 Saved: {out}/deep_research.json\n")
+    console.print(f"\n  Saved: {out}/deep_research.json\n")
 
 
 # ── CLI ──

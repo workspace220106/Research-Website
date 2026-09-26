@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 RUNS = ROOT / "runs"
 STATIC = ROOT / "static"
 ENV_FILE = ROOT / ".env"
-KEYS = ("GOOGLE_API_KEY", "TAVILY_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY")
+KEYS = ("GOOGLE_API_KEY", "OPENROUTER_API_KEY", "TAVILY_API_KEY", "NVIDIA_API_KEY", "GROQ_API_KEY")
 FILES = {
     "twitter_intel.json": "Social research",
     "deep_research.json": "Source research",
@@ -86,7 +86,8 @@ def run_pipeline(run_id: str, mode: str, topic: str) -> None:
     save_meta(run_id, data)
     try:
         with (directory / "run.log").open("w", encoding="utf-8", errors="replace") as log:
-            process = subprocess.run(args, cwd=directory, stdout=log, stderr=subprocess.STDOUT, check=False)
+            env = {**os.environ, "PYTHONUTF8": "1"}
+            process = subprocess.run(args, cwd=directory, stdout=log, stderr=subprocess.STDOUT, check=False, env=env)
         log_text = (directory / "run.log").read_text(encoding="utf-8", errors="replace")
         log_text = re.sub(r"\x1b\[[0-9;]*m", "", log_text)
         partial = bool(re.search(r"(?:Twitter Intelligence|Deep Web Research|Merge/Build|LaTeX generation) failed:", log_text, re.IGNORECASE))
@@ -201,7 +202,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Enter a topic between 3 and 180 characters.")
                 if mode not in ("full", "social", "research"):
                     raise ValueError("Choose a research type.")
-                required = ("GOOGLE_API_KEY", "TAVILY_API_KEY") if mode in ("social", "research") else ("GOOGLE_API_KEY", "TAVILY_API_KEY")
+                required = ("GOOGLE_API_KEY", "OPENROUTER_API_KEY", "TAVILY_API_KEY") if mode in ("social", "research") else ("GOOGLE_API_KEY", "OPENROUTER_API_KEY", "TAVILY_API_KEY")
                 missing = [key for key in required if not configured(env_values()[key])]
                 if missing:
                     raise ValueError("Add the required API keys in Settings before starting.")
